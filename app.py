@@ -101,70 +101,143 @@ def factcheck():
         }), 500
 
 def parse_claude_response(text):
-    # More robust parsing
+    """Parse Claude's response into structured data"""
+    print("\n== RAW TEXT TO PARSE ==")
+    print(text)
+    
+    # Default values
     verdict = "Unverified"
     justification = "Unable to process response"
     sources = []
-    context = ""
+    context = "No additional context provided"
+    confidence = 50
     
     try:
-        # Look for verdict
-        verdict_match = re.search(r"1\.\s*Verdict:?\s*([A-Za-z]+)", text)
-        if verdict_match:
-            verdict = verdict_match.group(1).strip()
+        # First try to find the verdict
+        verdict_patterns = [
+            r"Verdict:?\s*(True|False|Misleading|Unclear|Verified|Unverified)",
+            r"1\..*?(True|False|Misleading|Unclear|Verified|Unverified)",
+        ]
+        
+        for pattern in verdict_patterns:
+            verdict_match = re.search(pattern, text, re.IGNORECASE)
+            if verdict_match:
+                verdict = verdict_match.group(1).strip()
+                break
         
         # Look for explanation
-        explanation_match = re.search(r"2\.[^\n]*(explanation|sentences?)[^\n]*\n+(.*?)(?=\n+\d\.|\Z)", text, re.DOTALL)
-        if explanation_match:
-            justification = explanation_match.group(2).strip()
+        justification_patterns = [
+            r"2\.(.*?)(?=3\.|$)",
+            r"explanation:(.*?)(?=3\.|$)",
+            r"justification:(.*?)(?=3\.|$)",
+        ]
+        
+        for pattern in justification_patterns:
+            explanation_match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if explanation_match:
+                justification = explanation_match.group(1).strip()
+                # Remove numbering and labels
+                justification = re.sub(r"^[0-9]+\.?\s*", "", justification)
+                justification = re.sub(r"explanation:?", "", justification, flags=re.IGNORECASE).strip()
+                break
+        
+        # If we couldn't find a structured explanation, take the first paragraph after the verdict
+        if justification == "Unable to process response":
+            lines = text.split('\n')
+            for i, line in enumerate(lines):
+                if any(keyword in line.lower() for keyword in ["verdict", "true", "false", "misleading", "unclear"]):
+                    # Take the next non-empty line as justification
+                    for j in range(i+1, min(i+5, len(lines))):
+                        if lines[j].strip() and not any(keyword in lines[j].lower() for keyword in ["source", "context", "classification"]):
+                            justification = lines[j].strip()
+                            break
+                    break
         
         # Look for sources
-        sources_section = re.search(r"3\.[^\n]*(sources|reputable)[^\n]*\n+(.*?)(?=\n+\d\.|\Z)", text, re.DOTALL)
+        sources_section = ""
+        sources_patterns = [
+            r"3\.(.*?)(?=4\.|$)",
+            r"sources:(.*?)(?=4\.|$)",
+        ]
+        
+        for pattern in sources_patterns:
+            sources_match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if sources_match:
+                sources_section = sources_match.group(1).strip()
+                break
+        
         if sources_section:
-            source_text = sources_section.group(2)
-            url_matches = re.finditer(r"(.*?)?(https?://\S+)", source_text)
+            # Look for URLs
+            url_matches = re.finditer(r"(.*?)(https?://\S+)", sources_section)
             
             for match in url_matches:
-                title = match.group(1).strip() if match.group(1) else "Source"
+                title = match.group(1).strip()
                 url = match.group(2).strip()
+                
                 # Clean up title
                 title = re.sub(r"^[-*•]", "", title).strip()
                 if not title:
                     title = "Source"
+                
                 sources.append({"title": title, "url": url})
+            
+            # If no URLs found but there's content, add it as text
+            if not sources and sources_section:
+                # Split by lines or bullet points
+                source_lines = re.split(r'[\n•*-]', sources_section)
+                for line in source_lines:
+                    line = line.strip()
+                    if line and not line.lower().startswith(('source', '3.')):
+                        sources.append({"title": line, "url": "#"})
         
         # Look for context
-        context_match = re.search(r"4\.[^\n]*(context|historical)[^\n]*\n+(.*?)(?=\n+\d\.|\Z)", text, re.DOTALL)
-        if context_match:
-            context = context_match.group(2).strip()
-
-        # If still empty, use simpler parsing
-        if not justification:
-            lines = text.split('\n')
-            for i, line in enumerate(lines):
-                if line.strip() and "verdict" not in line.lower() and i > 1:
-                    justification = line.strip()
-                    break
-    
+        context_patterns = [
+            r"4\.(.*?)(?=5\.|$)",
+            r"historical context:(.*?)(?=5\.|$)",
+            r"context:(.*?)(?=5\.|$)",
+        ]
+        
+        for pattern in context_patterns:
+            context_match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+            if context_match:
+                context = context_match.group(1).strip()
+                # Remove numbering and labels
+                context = re.sub(r"^[0-9]+\.?\s*", "", context)
+                context = re.sub(r"(historical )?context:?", "", context, flags=re.IGNORECASE).strip()
+                break
+        
+        # Calculate confidence based on verdict clarity
+        if verdict.lower() in ["true", "false", "verified"]:
+            confidence = 80
+        elif verdict.lower() in ["misleading"]:
+            confidence = 60
+        elif verdict.lower() in ["unclear", "unverified"]:
+            confidence = 50
+        
     except Exception as e:
         print(f"Error parsing Claude response: {e}")
+        import traceback
+        print(traceback.format_exc())
     
     # Ensure we have some reasonable values
     if not sources:
         sources = [{"title": "No sources found", "url": "#"}]
     
-    # Confidence calculation - simple for now
-    confidence = 75 if verdict.lower() in ["true", "false"] else 50
     if not context:
         context = "No additional context provided"
     
-    return {
+    result = {
         "verdict": verdict,
         "justification": justification,
         "sources": sources,
         "context": context,
         "confidence": confidence
     }
+    
+    print("\n== PARSED RESULT ==")
+    print(result)
+    
+    return result
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
