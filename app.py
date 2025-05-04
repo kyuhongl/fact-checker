@@ -66,7 +66,16 @@ def factcheck():
             print("==== CLAUDE RAW RESPONSE END ====")
             print("==========================================\n")
             
-            structured = parse_claude_response(response.content)
+            # Extract text from response content if it's a list of TextBlock objects
+            response_text = ""
+            if isinstance(response.content, list):
+                for block in response.content:
+                    if hasattr(block, 'text'):
+                        response_text += block.text
+            else:
+                response_text = response.content
+            
+            structured = parse_claude_response(response_text)
             print("\n== STRUCTURED RESPONSE:")
             import json
             print(json.dumps(structured, indent=2))
@@ -77,7 +86,7 @@ def factcheck():
             recent_responses.append({
                 "text": text[:100] + "...",
                 "timestamp": datetime.datetime.now().isoformat(),
-                "claude_response": response.content,
+                "claude_response": response_text,  # Store the extracted text
                 "structured": structured
             })
             
