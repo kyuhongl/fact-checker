@@ -5,6 +5,12 @@ from dotenv import load_dotenv
 import anthropic
 import os
 import re
+import sys
+import io
+import datetime
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True)
+print("== Fact-checker backend started with immediate log flushing ==")
 
 load_dotenv()
 client = anthropic.Anthropic(api_key=os.getenv("CLAUDE_API_KEY"))
@@ -16,45 +22,74 @@ CORS(app)
 def health_check():
     return jsonify({"status": "ok", "message": "Fact-checker API is running"})
 
+recent_responses = []  # Store recent responses for debugging
+
+@app.route("/debug-responses", methods=["GET"])
+def debug_responses():
+    """Endpoint to view the most recent Claude responses"""
+    return jsonify(recent_responses)
+
 @app.route("/factcheck", methods=["POST"])
 def factcheck():
     try:
         if not os.getenv("CLAUDE_API_KEY"):
+            print("ERROR: Claude API key is not configured!")
             return jsonify({"error": "Claude API key is not configured"}), 500
             
         text = request.json["text"]
         if not text or len(text) < 3:
+            print("ERROR: Text too short")
             return jsonify({"error": "Text too short"}), 400
             
-        print(f"Received request with text: {text[:50]}...")  # Log the first 50 chars
+        print(f"== Received request with text: {text[:100]}...")
         
         prompt = format_prompt(text)
-        print(f"Generated prompt, sending to Claude...")
+        print(f"== Generated prompt:")
+        print(prompt)
+        print("== Sending to Claude...")
         
         # Use the specified model
         model = "claude-3-7-sonnet-20250219"
-        response = client.messages.create(
-            model=model,
-            max_tokens=800,
-            temperature=0.3,
-            system="You are a meticulous, unbiased fact-checking assistant.",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        # Print the full raw response from Claude
-        print("\n===== CLAUDE RAW RESPONSE =====")
-        print(response.content)
-        print("===== END CLAUDE RESPONSE =====\n")
-        
-        structured = parse_claude_response(response.content)
-        print("\n===== STRUCTURED RESPONSE =====")
-        print(structured)
-        print("===== END STRUCTURED RESPONSE =====\n")
-        
-        return jsonify(structured)
+        try:
+            print(f"== Making API call to Claude with model: {model}")
+            response = client.messages.create(
+                model=model,
+                max_tokens=800,
+                temperature=0.3,
+                system="You are a meticulous, unbiased fact-checking assistant.",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            print("\n==========================================")
+            print("==== CLAUDE RAW RESPONSE START ====")
+            print(response.content)
+            print("==== CLAUDE RAW RESPONSE END ====")
+            print("==========================================\n")
+            
+            structured = parse_claude_response(response.content)
+            print("\n== STRUCTURED RESPONSE:")
+            import json
+            print(json.dumps(structured, indent=2))
+            
+            # Store response for debugging (limit to last 5)
+            if len(recent_responses) >= 5:
+                recent_responses.pop(0)
+            recent_responses.append({
+                "text": text[:100] + "...",
+                "timestamp": datetime.datetime.now().isoformat(),
+                "claude_response": response.content,
+                "structured": structured
+            })
+            
+            return jsonify(structured)
+        except Exception as claude_error:
+            print(f"ERROR with Claude API call: {claude_error}")
+            raise claude_error
+            
     except Exception as e:
         import traceback
-        print(f"Error in factcheck endpoint: {e}")
+        print(f"CRITICAL ERROR in factcheck endpoint: {e}")
+        print("== TRACEBACK:")
         print(traceback.format_exc())
         return jsonify({
             "error": str(e),
