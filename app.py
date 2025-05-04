@@ -32,7 +32,7 @@ def factcheck():
         print(f"Generated prompt, sending to Claude...")
         
         # Use a more stable model identifier
-        model = "claude-3-7-sonnet-20250219"
+        model = "claude-3-sonnet-20240229"
         try:
             response = client.messages.create(
                 model=model,
@@ -53,8 +53,16 @@ def factcheck():
                 messages=[{"role": "user", "content": prompt}]
             )
         
-        print(f"Got response from Claude ({model}): {response.content[:100]}...")
+        # Print the full raw response from Claude
+        print("\n===== CLAUDE RAW RESPONSE =====")
+        print(response.content)
+        print("===== END CLAUDE RESPONSE =====\n")
+        
         structured = parse_claude_response(response.content)
+        print("\n===== STRUCTURED RESPONSE =====")
+        print(structured)
+        print("===== END STRUCTURED RESPONSE =====\n")
+        
         return jsonify(structured)
     except Exception as e:
         import traceback
