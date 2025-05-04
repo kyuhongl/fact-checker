@@ -32,7 +32,7 @@ def factcheck():
         print(f"Generated prompt, sending to Claude...")
         
         # Use a more stable model identifier
-        model = "claude-3-sonnet-20240229"
+        model = "claude-3-7-sonnet-20250219"
         try:
             response = client.messages.create(
                 model=model,
