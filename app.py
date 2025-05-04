@@ -31,27 +31,15 @@ def factcheck():
         prompt = format_prompt(text)
         print(f"Generated prompt, sending to Claude...")
         
-        # Use a more stable model identifier
-        model = "claude-3-sonnet-20240229"
-        try:
-            response = client.messages.create(
-                model=model,
-                max_tokens=800,
-                temperature=0.3,
-                system="You are a meticulous, unbiased fact-checking assistant.",
-                messages=[{"role": "user", "content": prompt}]
-            )
-        except Exception as model_error:
-            print(f"Error with model {model}: {model_error}")
-            # Fallback to older Claude model
-            model = "claude-2.1"
-            response = client.messages.create(
-                model=model,
-                max_tokens=800,
-                temperature=0.3,
-                system="You are a meticulous, unbiased fact-checking assistant.",
-                messages=[{"role": "user", "content": prompt}]
-            )
+        # Use the specified model
+        model = "claude-3-7-sonnet-20250219"
+        response = client.messages.create(
+            model=model,
+            max_tokens=800,
+            temperature=0.3,
+            system="You are a meticulous, unbiased fact-checking assistant.",
+            messages=[{"role": "user", "content": prompt}]
+        )
         
         # Print the full raw response from Claude
         print("\n===== CLAUDE RAW RESPONSE =====")
