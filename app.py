@@ -17,7 +17,7 @@ def factcheck():
     prompt = format_prompt(text)
 
     response = client.messages.create(
-        model="claude-3-sonnet-20240229",
+        model="claude-3-7-sonnet-20250219",
         max_tokens=800,
         temperature=0.3,
         system="You are a meticulous, unbiased fact-checking assistant.",
