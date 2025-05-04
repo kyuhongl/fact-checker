@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from prompts import format_prompt
 from dotenv import load_dotenv
 import anthropic
@@ -7,6 +8,8 @@ import os
 load_dotenv()
 client = anthropic.Anthropic(api_key=os.getenv("CLAUDE_API_KEY"))
 app = Flask(__name__)
+CORS(app) 
+
 
 @app.route("/factcheck", methods=["POST"])
 def factcheck():
