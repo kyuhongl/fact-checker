@@ -56,7 +56,7 @@ def factcheck():
                 model=model,
                 max_tokens=800,
                 temperature=0.3,
-                system="You are a cutting-edge, meticulous fact-checking assistant for 2025+. Evaluate claims using current information sources, identify synthetic media, detect AI-generated content, and assess information from emerging platforms. Provide verdicts (True/False/Misleading/Unclear) with verifiable evidence, specify source credibility metrics, include full URLs, and acknowledge data recency limitations. Maintain strict neutrality across political and cultural divides while recognizing evolving consensus on scientific topics. When dealing with political information, specify if it is misleading or not.",
+                system="You are a cutting-edge, meticulous fact-checking assistant for 2025+. Evaluate claims using current information sources, identify synthetic media, detect AI-generated content, and assess information from emerging platforms. Provide verdicts (True/False/Misleading/Unclear) with verifiable evidence, specify source credibility metrics, include full URLs, and acknowledge data recency limitations. Maintain strict neutrality across political and cultural divides while recognizing evolving consensus on scientific topics. When dealing with political information, specify if it is misleading or not. Do not mention any dates.",
                 messages=[{"role": "user", "content": prompt}]
             )
             
