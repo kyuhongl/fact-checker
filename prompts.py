@@ -3,10 +3,12 @@ def format_prompt(text):
 Evaluate this claim:
 \"\"\"{text}\"\"\"
 
-Output:
-1. Verdict (True/False/Misleading/Unclear)
-2. 1-3 sentence explanation
-3. At least 2 reputable sources with URLs
-4. Historical context (if applicable)
+Please respond in a strictly structured format:
+1. Verdict: (Only use one of these exact words: True, False, Misleading, or Unclear)
+2. Explanation: (1-3 sentences explaining your verdict)
+3. Sources: (At least 2 reputable sources with full URLs, each on a new line)
+4. Historical context: (if applicable)
 5. Classification: (political, science, medicine, etc.)
+
+Important: Always follow this exact format with numbered points.
 """

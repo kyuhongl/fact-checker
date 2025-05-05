@@ -215,13 +215,50 @@ def parse_claude_response(text):
                 context = re.sub(r"(historical )?context:?", "", context, flags=re.IGNORECASE).strip()
                 break
         
-        # Calculate confidence based on verdict clarity
+        # Calculate confidence based on multiple factors
+        confidence = 40  # Lower base confidence to allow more room for adjustments
+        
+        # Adjust based on verdict clarity and strength
         if verdict.lower() in ["true", "false", "verified"]:
-            confidence = 80
+            confidence += 25  # Higher weight for definitive verdicts
         elif verdict.lower() in ["misleading"]:
-            confidence = 60
-        elif verdict.lower() in ["unclear", "unverified"]:
-            confidence = 50
+            confidence += 15  # Moderate weight for misleading verdicts
+        elif verdict.lower() in ["unclear"]:
+            confidence += 5   # Low weight for unclear verdicts
+        
+        # Adjust based on number of sources with diminishing returns
+        if len(sources) >= 3:
+            confidence += 15  # High weight for multiple sources
+        elif len(sources) == 2:
+            confidence += 10  # Moderate weight for two sources
+        elif len(sources) == 1:
+            confidence += 5   # Low weight for single source
+        
+        # Adjust based on source quality (check for reputable domains)
+        reputable_domains = ['.edu', '.gov', '.org', 'wikipedia.org', 'bbc.com', 'reuters.com', 'nytimes.com', 'washingtonpost.com', 'theguardian.com']
+        reputable_sources = sum(1 for src in sources if any(domain in src['url'].lower() for domain in reputable_domains))
+        if reputable_sources >= 2:
+            confidence += 15  # High weight for multiple reputable sources
+        elif reputable_sources == 1:
+            confidence += 8   # Moderate weight for single reputable source
+        
+        # Adjust based on explanation quality
+        explanation_words = len(justification.split())
+        if explanation_words > 50:  # Very detailed explanation
+            confidence += 10
+        elif explanation_words > 30:  # Detailed explanation
+            confidence += 7
+        elif explanation_words > 15:  # Basic explanation
+            confidence += 4
+        
+        # Adjust based on context presence and quality
+        if context and len(context.split()) > 20:  # Good context
+            confidence += 8
+        elif context:  # Basic context
+            confidence += 4
+        
+        # Ensure confidence stays within bounds
+        confidence = max(0, min(100, confidence))
         
     except Exception as e:
         print(f"Error parsing Claude response: {e}")
